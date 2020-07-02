@@ -1,0 +1,104 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset=utf-8>
+  <style>
+    .root {
+      display: flex;
+      align-items: center;
+      flex-direction: column;  /* make main axis vertical */
+    }
+    section {
+      display: flex;
+      align-items: left;
+      flex-direction: column;  /* make main axis vertical */
+    }
+    .plot {
+      width: 75%;
+    }
+    html {
+      font-family: sans-serif;
+    }
+    table {
+      border-top: 2px solid gray;
+      border-bottom: 2px solid gray;
+      width: 40%;
+      border-collapse: collapse;
+    }
+    .metrics {
+      width: 40%;
+      padding-top: 3em;
+      padding-bottom: 3em;
+      margin: 0 auto;
+      display: flex;
+      justify-content: center;
+    }
+    .metrics td:last-child {
+      text-align: right;
+    }
+    p {
+      text-align: left;
+    }
+    .explanation {
+      width: 35em;
+    }
+    .explanation input#url-input {
+      width: 35em;
+    }
+    pre {
+      margin: 0 auto;
+      display: block;
+    }
+  </style>
+</head>
+
+
+<div class=root>
+  <h2>gecko patch</h2>
+<pre>
+diff --git a/dom/media/mediasink/VideoSink.cpp b/dom/media/mediasink/VideoSink.cpp
+--- a/dom/media/mediasink/VideoSink.cpp
++++ b/dom/media/mediasink/VideoSink.cpp
+@@ -481,16 +481,20 @@ void VideoSink::UpdateRenderedVideoFrame
+   AssertOwnerThread();
+   MOZ_ASSERT(mAudioSink->IsPlaying(), "should be called while playing.");
+ 
+   // Get the current playback position.
+   TimeStamp nowTime;
+   const auto clockTime = mAudioSink->GetPosition(&nowTime);
+   MOZ_ASSERT(!clockTime.IsNegative(), "Should have positive clock time.");
+ 
++  static auto basets = TimeStamp::NowUnfuzzed();
++
++  fprintf(stderr, "%ld %ld\n", (long) (nowTime - basets).ToMicroseconds(), (long) clockTime.ToMicroseconds());
++
+   uint32_t sentToCompositorCount = 0;
+   uint32_t droppedInSink = 0;
+ 
+   // Skip frames up to the playback position.
+   TimeUnit lastFrameEndTime;
+   while (VideoQueue().GetSize() > mMinVideoQueueSize &&
+          clockTime >= VideoQueue().PeekFront()->GetEndTime()) {
+     RefPtr<VideoData> frame = VideoQueue().PopFront();
+</pre>
+  <h2>explanations</h2>
+  <div class=explanation>
+    <p>
+  For each clock query, the second graph is the system time - the audio time. If
+  the series is trending downward, the audio clock is faster than the sysetm
+  clock, and vice versa.
+  </p>
+  <p>
+  Load a file from disk
+  </p>
+<input type=file id=data-file-input></input>
+<p>
+  or a URL (default is about 3min playback of
+  <a
+    href=https://www.youtube.com/watch?v=oakWgLqCwUc>https://www.youtube.com/watch?v=oakWgLqCwUc</a>):
+<input type=url id=url-input value="https://paul.cx/public/ts.log"></input> <button>Fetch</button>
+</p>
+</div>
+<script src="vendor/plotly-latest.min.js"></script>
+<script src="app.js"></script>
+</html>
